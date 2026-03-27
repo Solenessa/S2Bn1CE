@@ -56,9 +56,11 @@ Completed:
   - parses explicit resource-reference entries
   - resolves cross-package references to mesh-side resources such as `CRES` and `SHPE`
   - promotes recolor-to-mesh matching from folder heuristics to real package-reference evidence
+  - currently used for dependency inference in the UI/reporting layer (not yet persisted to a dedicated extraction table during scan)
 - `TXMT` lightweight parser
   - extracts material/resource-name strings
   - exposes material identity hints for dependency display
+  - currently used for dependency inference/display in the UI/reporting layer (not yet persisted to a dedicated extraction table during scan)
 - `GZPS` structured parser
   - persists first-pass CAS metadata such as item name, creator, family, and type
   - supports creator clustering and per-package CAS detail views
@@ -108,20 +110,20 @@ Planned next:
 Create the database:
 
 ```bash
-python3 /home/austin/Coding/Sims2-CC-Diagnostics/app/bootstrap_db.py
+python3 app/bootstrap_db.py
 ```
 
 Scan a content folder:
 
 ```bash
-python3 Sims2-CC-Diagnostics/app/scan_content.py --root "/path/to/The Sims 2/Downloads"
-python3 Sims2-CC-Diagnostics/app/import_crash_logs.py --root "/path/to/The Sims 2/Logs"
+python3 app/scan_content.py --root "/path/to/The Sims 2/Downloads"
+python3 app/import_crash_logs.py --root "/path/to/The Sims 2/Logs"
 ```
 
 Launch the UI:
 
 ```bash
-uvicorn app.web_ui:app --app-dir Sims2-CC-Diagnostics --reload
+uvicorn app.web_ui:app --reload
 ```
 
 Then open `http://127.0.0.1:8000`.
@@ -129,7 +131,7 @@ Then open `http://127.0.0.1:8000`.
 Desktop launcher:
 
 ```bash
-python3 Sims2-CC-Diagnostics/app/desktop_app.py
+python3 app/desktop_app.py
 ```
 
 The desktop app is the path intended for Windows portability. It stores folder settings, initializes the database, scans custom content, imports logs, and writes a plain-language text report without requiring the user to run a server manually.
@@ -194,8 +196,8 @@ It is designed to expand into:
 
 ## Next High-Value Steps
 
-1. Parse package internals into `package_resources`
-2. Detect shared resource overrides and GUID collisions
-3. Distinguish harmless duplicates from dangerous behavior conflicts
+1. Persist dedicated structured extraction tables for scenegraph-focused parsers (starting with `3IDR` and `TXMT`) to complement existing dependency inference
+2. Deepen scenegraph and CAS dependency analysis across `3IDR`, `CRES`, `SHPE`, `GMND`, `GMDC`, `TXMT`, `TXTR`, and `GZPS`
+3. Distinguish harmless duplicates from dangerous behavior conflicts with higher-confidence scoring
 4. Add manual pair review notes and confirmed conflict records
 5. Add “safe to test remove” and “never remove” labels
