@@ -155,7 +155,7 @@ class DesktopApp:
             messagebox.showinfo(APP_TITLE, "No report file is available yet.")
             return
         if os.name == "nt":
-            os.startfile(report_path)  # type: ignore[attr-defined]
+            os.startfile(report_path)  # type: ignore[attr-defined]  # nosec B606
             return
         messagebox.showinfo(APP_TITLE, f"Last report: {report_path}")
 
