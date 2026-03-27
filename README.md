@@ -114,14 +114,14 @@ python3 /home/austin/Coding/Sims2-CC-Diagnostics/app/bootstrap_db.py
 Scan a content folder:
 
 ```bash
-python3 /home/austin/Coding/Sims2-CC-Diagnostics/app/scan_content.py --root "/path/to/The Sims 2/Downloads"
-python3 /home/austin/Coding/Sims2-CC-Diagnostics/app/import_crash_logs.py --root "/path/to/The Sims 2/Logs"
+python3 Sims2-CC-Diagnostics/app/scan_content.py --root "/path/to/The Sims 2/Downloads"
+python3 Sims2-CC-Diagnostics/app/import_crash_logs.py --root "/path/to/The Sims 2/Logs"
 ```
 
 Launch the UI:
 
 ```bash
-uvicorn app.web_ui:app --app-dir /home/austin/Coding/Sims2-CC-Diagnostics --reload
+uvicorn app.web_ui:app --app-dir Sims2-CC-Diagnostics --reload
 ```
 
 Then open `http://127.0.0.1:8000`.
@@ -129,7 +129,7 @@ Then open `http://127.0.0.1:8000`.
 Desktop launcher:
 
 ```bash
-python3 /home/austin/Coding/Sims2-CC-Diagnostics/app/desktop_app.py
+python3 Sims2-CC-Diagnostics/app/desktop_app.py
 ```
 
 The desktop app is the path intended for Windows portability. It stores folder settings, initializes the database, scans custom content, imports logs, and writes a plain-language text report without requiring the user to run a server manually.
