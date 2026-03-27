@@ -1,11 +1,5 @@
 # Sims 2 CC Diagnostics Handoff
 
-## Project Location
-
-- Root: `/home/austin/Coding/Sims2-CC-Diagnostics`
-- Database: `/home/austin/Coding/Sims2-CC-Diagnostics/data/sims2_cc.db`
-- Real test folder: `/home/austin/Coding/Sims2-Test-Packages`
-
 ## Current Purpose
 
 Local diagnostics platform for The Sims 2 custom content.
@@ -54,7 +48,7 @@ Current capabilities:
 Most recent validated scan:
 
 ```text
-python3 /home/austin/Coding/Sims2-CC-Diagnostics/app/scan_content.py --root /home/austin/Coding/Sims2-Test-Packages
+python3 Sims2-CC-Diagnostics/app/scan_content.py --root Sims2-Test-Packages
 ```
 
 Result:
@@ -64,7 +58,7 @@ Result:
 - `1` exact duplicate group
 - `248` indexed resources
 
-Package classification for `/home/austin/Coding/Sims2-Test-Packages`:
+Package classification for `Sims2-Test-Packages`:
 
 - `30` `Recolor or Property Set`
 - `5` `Mesh Package`
@@ -159,7 +153,7 @@ It now also adds:
 
 This is still intentionally heuristic, but it is already useful for the current test set.
 
-Current observed outputs for `/home/austin/Coding/Sims2-Test-Packages`:
+Current observed outputs for `Sims2-Test-Packages`:
 
 - `5` likely mesh bundles
 - `0` orphan recolor folders
@@ -204,23 +198,23 @@ Compile:
 
 ```bash
 python3 -m py_compile \
-  /home/austin/Coding/Sims2-CC-Diagnostics/app/bootstrap_db.py \
-  /home/austin/Coding/Sims2-CC-Diagnostics/app/scan_content.py \
-  /home/austin/Coding/Sims2-CC-Diagnostics/app/dbpf_parser.py \
-  /home/austin/Coding/Sims2-CC-Diagnostics/app/resource_parsers.py \
-  /home/austin/Coding/Sims2-CC-Diagnostics/app/web_ui.py
+  Sims2-CC-Diagnostics/app/bootstrap_db.py \
+  Sims2-CC-Diagnostics/app/scan_content.py \
+  Sims2-CC-Diagnostics/app/dbpf_parser.py \
+  Sims2-CC-Diagnostics/app/resource_parsers.py \
+  Sims2-CC-Diagnostics/app/web_ui.py
 ```
 
 Scan real folder:
 
 ```bash
-python3 /home/austin/Coding/Sims2-CC-Diagnostics/app/scan_content.py --root /home/austin/Coding/Sims2-Test-Packages
+python3 Sims2-CC-Diagnostics/app/scan_content.py --root Sims2-Test-Packages
 ```
 
 Run UI:
 
 ```bash
-uvicorn app.web_ui:app --app-dir /home/austin/Coding/Sims2-CC-Diagnostics --reload
+uvicorn app.web_ui:app --app-dir Sims2-CC-Diagnostics --reload
 ```
 
 ## Notes On Context
