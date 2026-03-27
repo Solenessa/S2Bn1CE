@@ -6,8 +6,8 @@ from datetime import datetime
 from pathlib import Path
 
 try:
-    from app.web_ui import (
-        DB_PATH,
+    from app.db import DEFAULT_DB_PATH, connect, resolve_db_path
+    from app.diagnostics import (
         classify_candidate_strength,
         correlate_crash_report,
         fetch_crash_reports,
@@ -16,12 +16,12 @@ try:
         fetch_duplicate_mesh_candidates,
         fetch_material_override_groups,
         fetch_partial_gzps_rows,
+        fetch_schema_version,
         fetch_stats,
-        get_connection,
     )
 except ModuleNotFoundError:
-    from web_ui import (
-        DB_PATH,
+    from db import DEFAULT_DB_PATH, connect, resolve_db_path
+    from diagnostics import (
         classify_candidate_strength,
         correlate_crash_report,
         fetch_crash_reports,
@@ -30,14 +30,15 @@ except ModuleNotFoundError:
         fetch_duplicate_mesh_candidates,
         fetch_material_override_groups,
         fetch_partial_gzps_rows,
+        fetch_schema_version,
         fetch_stats,
-        get_connection,
     )
 
 
-def build_plain_language_report(db_path: Path = DB_PATH) -> str:
-    connection = get_connection()
+def build_plain_language_report(db_path: Path = DEFAULT_DB_PATH) -> str:
+    connection = connect(resolve_db_path(db_path))
     stats = fetch_stats(connection)
+    schema_version = fetch_schema_version(connection)
     dependency_candidates, unresolved_recolors, signatures = fetch_dependency_candidates(connection)
     duplicate_mesh = fetch_duplicate_mesh_candidates(connection)
     partial_gzps = fetch_partial_gzps_rows(connection)
@@ -48,6 +49,7 @@ def build_plain_language_report(db_path: Path = DB_PATH) -> str:
     lines = []
     lines.append("Sims 2 Diagnostics Report")
     lines.append(f"Generated: {datetime.now().isoformat(timespec='seconds')}")
+    lines.append(f"Schema version: {schema_version}")
     lines.append("")
     lines.append("Overview")
     lines.append(f"- Files scanned: {stats['file_count'] or 0}")
@@ -132,7 +134,7 @@ def build_plain_language_report(db_path: Path = DB_PATH) -> str:
     return "\n".join(lines) + "\n"
 
 
-def write_report(report_dir: Path, db_path: Path = DB_PATH) -> Path:
+def write_report(report_dir: Path, db_path: Path = DEFAULT_DB_PATH) -> Path:
     report_dir = report_dir.expanduser().resolve()
     report_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")

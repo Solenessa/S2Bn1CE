@@ -3,38 +3,39 @@
 from __future__ import annotations
 
 import argparse
-import sqlite3
 from pathlib import Path
 
-
-APP_DIR = Path(__file__).resolve().parent
-PROJECT_DIR = APP_DIR.parent
-DATA_DIR = PROJECT_DIR / "data"
-DB_PATH = DATA_DIR / "sims2_cc.db"
-SCHEMA_PATH = APP_DIR / "schema.sql"
+try:
+    from app.db import backup_database, initialize_database, resolve_db_path
+except ModuleNotFoundError:
+    from db import backup_database, initialize_database, resolve_db_path
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Create or rebuild the Sims 2 CC diagnostics database.")
-    parser.add_argument("--db", type=Path, default=DB_PATH)
+    parser = argparse.ArgumentParser(description="Initialize or reset the Sims 2 CC diagnostics database.")
+    parser.add_argument("--db", type=Path, default=resolve_db_path())
+    parser.add_argument("--reset", action="store_true", help="Backup and recreate the database file")
+    parser.add_argument("--yes", action="store_true", help="Required with --reset to confirm destructive recreation")
     return parser.parse_args()
-
-
-def initialize_database(db_path: Path = DB_PATH) -> Path:
-    db_path = db_path.expanduser().resolve()
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(db_path)
-    connection.execute("PRAGMA foreign_keys = ON")
-    connection.executescript(SCHEMA_PATH.read_text())
-    connection.commit()
-    connection.close()
-    return db_path
 
 
 def main() -> None:
     args = parse_args()
-    db_path = initialize_database(args.db)
-    print(f"Initialized database at {db_path}")
+    db_path = resolve_db_path(args.db)
+    if args.reset:
+        if not args.yes:
+            raise SystemExit("--reset requires --yes because it recreates the database file after taking a backup.")
+        backup_path = None
+        if db_path.exists():
+            backup_path = backup_database(db_path)
+            db_path.unlink()
+        initialized_path = initialize_database(db_path)
+        if backup_path:
+            print(f"Backed up existing database to {backup_path}")
+        print(f"Recreated database at {initialized_path}")
+        return
+    initialized_path = initialize_database(db_path)
+    print(f"Initialized database at {initialized_path}")
 
 
 if __name__ == "__main__":

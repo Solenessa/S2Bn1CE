@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 import argparse
-import sqlite3
 from pathlib import Path
 
 try:
+    from app.db import connect, resolve_db_path
     from app.crash_parser import parse_crash_log
-    from app.bootstrap_db import DB_PATH
 except ModuleNotFoundError:
+    from db import connect, resolve_db_path
     from crash_parser import parse_crash_log
-    from bootstrap_db import DB_PATH
+
+
+DB_PATH = resolve_db_path()
 
 
 LOG_EXTENSIONS = {".txt", ".log"}
@@ -26,14 +28,13 @@ def parse_args() -> argparse.Namespace:
 
 def import_logs(root: Path, db_path: Path = DB_PATH) -> dict[str, int | str]:
     root = root.expanduser().resolve()
-    db_path = db_path.expanduser().resolve()
+    db_path = resolve_db_path(db_path)
     if not root.exists():
         raise FileNotFoundError(f"Root does not exist: {root}")
     if not db_path.exists():
         raise FileNotFoundError(f"Database does not exist: {db_path}. Run bootstrap_db.py first.")
 
-    connection = sqlite3.connect(db_path)
-    connection.execute("PRAGMA foreign_keys = ON")
+    connection = connect(db_path)
 
     imported = 0
     for path in sorted(root.rglob("*")):

@@ -9,19 +9,25 @@ import sqlite3
 from pathlib import Path
 
 try:
+    from app.db import connect, resolve_db_path
     from app.dbpf_parser import DBPFParseError, parse_dbpf
-    from app.resource_parsers import parse_bhav, parse_gzps, parse_objd, parse_ttab
+    from app.diagnostics import extract_name_tokens, normalize_scenegraph_name
+    from app.resource_parsers import parse_3idr, parse_bhav, parse_gzps, parse_objd, parse_ttab, parse_txmt
 except ModuleNotFoundError:
+    from db import connect, resolve_db_path
     from dbpf_parser import DBPFParseError, parse_dbpf
-    from resource_parsers import parse_bhav, parse_gzps, parse_objd, parse_ttab
+    from diagnostics import extract_name_tokens, normalize_scenegraph_name
+    from resource_parsers import parse_3idr, parse_bhav, parse_gzps, parse_objd, parse_ttab, parse_txmt
 
 
 APP_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = APP_DIR.parent
-DB_PATH = PROJECT_DIR / "data" / "sims2_cc.db"
+DB_PATH = resolve_db_path(PROJECT_DIR / "data" / "sims2_cc.db")
 
 PACKAGE_EXTENSIONS = {".package", ".sims2pack"}
 PARSEABLE_EXTENSIONS = {".package"}
+SCENEGRAPH_TYPES = {"GMDC", "GMND", "CRES", "SHPE", "TXMT", "TXTR", "3IDR", "GZPS"}
+NAME_PATTERN = r"[A-Za-z0-9_.!#~:-]{4,}"
 
 
 def parse_args() -> argparse.Namespace:
@@ -93,20 +99,87 @@ def purge_root(connection: sqlite3.Connection, root: Path) -> None:
         "DELETE FROM package_resources WHERE file_id IN (SELECT id FROM files WHERE root_path = ?)",
         (root_path,),
     )
+    connection.execute(
+        "DELETE FROM scenegraph_names WHERE file_id IN (SELECT id FROM files WHERE root_path = ?)",
+        (root_path,),
+    )
+    connection.execute(
+        "DELETE FROM resource_links WHERE file_id IN (SELECT id FROM files WHERE root_path = ?)",
+        (root_path,),
+    )
     connection.execute("DELETE FROM files WHERE root_path = ?", (root_path,))
+
+
+def extract_printable_strings(blob: bytes) -> list[str]:
+    import re
+
+    strings = []
+    seen: set[str] = set()
+    for match in re.finditer(NAME_PATTERN, blob.decode("latin-1", errors="ignore")):
+        value = match.group(0)
+        if value not in seen:
+            seen.add(value)
+            strings.append(value)
+    return strings
+
+
+def important_scenegraph_string(value: str) -> bool:
+    lowered = value.lower()
+    if len(value) < 8:
+        return False
+    return any(token in lowered for token in ["mesh.", "body_", "body~", "_txmt", "_txt", "_gmdc", "_gmnd", "_shpe", "_cres", "stdmat", "locator", "pirate", "hoodie", "dress", "vest"])
+
+
+def persist_scenegraph_hints(connection: sqlite3.Connection, file_id: int, resource_key: str, type_label: str, body: bytes) -> None:
+    values: set[tuple[str, str]] = set()
+    for value in extract_printable_strings(body):
+        if not important_scenegraph_string(value):
+            continue
+        normalized = normalize_scenegraph_name(value)
+        values.add((value, normalized))
+        for token in extract_name_tokens(normalized):
+            values.add((token, token))
+    if type_label == "TXMT":
+        parsed_txmt = parse_txmt(body)
+        if parsed_txmt.resource_name:
+            normalized = normalize_scenegraph_name(parsed_txmt.resource_name)
+            values.add((parsed_txmt.resource_name, normalized))
+        for name in parsed_txmt.texture_name_candidates:
+            values.add((name, normalize_scenegraph_name(name)))
+    for value, normalized in sorted(values):
+        connection.execute(
+            """
+            INSERT INTO scenegraph_names (file_id, source_type_label, resource_key, value, normalized_value)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (file_id, type_label, resource_key, value, normalized),
+        )
+
+
+def persist_resource_links(connection: sqlite3.Connection, file_id: int, resource_key: str, type_label: str, body: bytes) -> None:
+    if type_label != "3IDR":
+        return
+    parsed = parse_3idr(body)
+    for ref in parsed.references:
+        connection.execute(
+            """
+            INSERT INTO resource_links (
+              file_id, source_type_label, source_resource_key, target_resource_key, target_type_id
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            (file_id, type_label, resource_key, ref.resource_key, ref.type_id),
+        )
 
 
 def scan_root(root: Path, db_path: Path = DB_PATH) -> dict[str, int | str]:
     root = root.expanduser().resolve()
-    db_path = db_path.expanduser().resolve()
+    db_path = resolve_db_path(db_path)
     if not root.exists():
         raise FileNotFoundError(f"Root does not exist: {root}")
     if not db_path.exists():
         raise FileNotFoundError(f"Database does not exist: {db_path}. Run bootstrap_db.py first.")
 
-    connection = sqlite3.connect(db_path)
-    connection.execute("PRAGMA foreign_keys = ON")
-    connection.row_factory = sqlite3.Row
+    connection = connect(db_path)
 
     cursor = connection.execute(
         "INSERT INTO scan_runs (root_path) VALUES (?)",
@@ -188,6 +261,10 @@ def scan_root(root: Path, db_path: Path = DB_PATH) -> dict[str, int | str]:
                     ),
                 )
                 package_resource_id = int(resource_cursor.lastrowid)
+
+                if resource.type_label in SCENEGRAPH_TYPES and resource.body is not None:
+                    persist_scenegraph_hints(connection, file_id, resource.resource_key, resource.type_label, resource.body)
+                    persist_resource_links(connection, file_id, resource.resource_key, resource.type_label, resource.body)
 
                 if resource.type_label == "OBJD" and resource.body is not None:
                     objd = parse_objd(resource.body)
@@ -304,7 +381,7 @@ def scan_root(root: Path, db_path: Path = DB_PATH) -> dict[str, int | str]:
                             gzps.raw_length,
                         ),
                     )
-        except DBPFParseError as exc:
+        except (DBPFParseError, OSError, sqlite3.DatabaseError, ValueError) as exc:
             connection.execute(
                 """
                 UPDATE files

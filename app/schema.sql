@@ -1,24 +1,13 @@
 PRAGMA foreign_keys = ON;
 
-DROP TABLE IF EXISTS pair_reviews;
-DROP TABLE IF EXISTS crash_reports;
-DROP TABLE IF EXISTS gzps_entries;
-DROP TABLE IF EXISTS ttab_tables;
-DROP TABLE IF EXISTS bhav_functions;
-DROP TABLE IF EXISTS objd_objects;
-DROP TABLE IF EXISTS package_resources;
-DROP TABLE IF EXISTS duplicate_groups;
-DROP TABLE IF EXISTS files;
-DROP TABLE IF EXISTS scan_runs;
-
-CREATE TABLE scan_runs (
+CREATE TABLE IF NOT EXISTS scan_runs (
   id INTEGER PRIMARY KEY,
   root_path TEXT NOT NULL,
   started_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   finished_at TEXT
 );
 
-CREATE TABLE files (
+CREATE TABLE IF NOT EXISTS files (
   id INTEGER PRIMARY KEY,
   scan_run_id INTEGER NOT NULL,
   root_path TEXT NOT NULL,
@@ -40,13 +29,13 @@ CREATE TABLE files (
   FOREIGN KEY (scan_run_id) REFERENCES scan_runs(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_files_scan_run_id ON files(scan_run_id);
-CREATE INDEX idx_files_sha256 ON files(sha256);
-CREATE INDEX idx_files_relative_path ON files(relative_path);
-CREATE INDEX idx_files_extension ON files(extension);
-CREATE INDEX idx_files_parse_status ON files(parse_status);
+CREATE INDEX IF NOT EXISTS idx_files_scan_run_id ON files(scan_run_id);
+CREATE INDEX IF NOT EXISTS idx_files_sha256 ON files(sha256);
+CREATE INDEX IF NOT EXISTS idx_files_relative_path ON files(relative_path);
+CREATE INDEX IF NOT EXISTS idx_files_extension ON files(extension);
+CREATE INDEX IF NOT EXISTS idx_files_parse_status ON files(parse_status);
 
-CREATE TABLE package_resources (
+CREATE TABLE IF NOT EXISTS package_resources (
   id INTEGER PRIMARY KEY,
   file_id INTEGER NOT NULL,
   type_id INTEGER NOT NULL,
@@ -62,12 +51,12 @@ CREATE TABLE package_resources (
   FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_package_resources_file_id ON package_resources(file_id);
-CREATE INDEX idx_package_resources_resource_key ON package_resources(resource_key);
-CREATE INDEX idx_package_resources_type_label ON package_resources(type_label);
-CREATE INDEX idx_package_resources_body_sha256 ON package_resources(body_sha256);
+CREATE INDEX IF NOT EXISTS idx_package_resources_file_id ON package_resources(file_id);
+CREATE INDEX IF NOT EXISTS idx_package_resources_resource_key ON package_resources(resource_key);
+CREATE INDEX IF NOT EXISTS idx_package_resources_type_label ON package_resources(type_label);
+CREATE INDEX IF NOT EXISTS idx_package_resources_body_sha256 ON package_resources(body_sha256);
 
-CREATE TABLE objd_objects (
+CREATE TABLE IF NOT EXISTS objd_objects (
   id INTEGER PRIMARY KEY,
   package_resource_id INTEGER NOT NULL UNIQUE,
   file_id INTEGER NOT NULL,
@@ -96,11 +85,11 @@ CREATE TABLE objd_objects (
   FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_objd_objects_guid ON objd_objects(guid);
-CREATE INDEX idx_objd_objects_file_id ON objd_objects(file_id);
-CREATE INDEX idx_objd_objects_object_name ON objd_objects(object_name);
+CREATE INDEX IF NOT EXISTS idx_objd_objects_guid ON objd_objects(guid);
+CREATE INDEX IF NOT EXISTS idx_objd_objects_file_id ON objd_objects(file_id);
+CREATE INDEX IF NOT EXISTS idx_objd_objects_object_name ON objd_objects(object_name);
 
-CREATE TABLE bhav_functions (
+CREATE TABLE IF NOT EXISTS bhav_functions (
   id INTEGER PRIMARY KEY,
   package_resource_id INTEGER NOT NULL UNIQUE,
   file_id INTEGER NOT NULL,
@@ -121,11 +110,11 @@ CREATE TABLE bhav_functions (
   FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_bhav_functions_file_id ON bhav_functions(file_id);
-CREATE INDEX idx_bhav_functions_signature ON bhav_functions(signature);
-CREATE INDEX idx_bhav_functions_instruction_count ON bhav_functions(instruction_count);
+CREATE INDEX IF NOT EXISTS idx_bhav_functions_file_id ON bhav_functions(file_id);
+CREATE INDEX IF NOT EXISTS idx_bhav_functions_signature ON bhav_functions(signature);
+CREATE INDEX IF NOT EXISTS idx_bhav_functions_instruction_count ON bhav_functions(instruction_count);
 
-CREATE TABLE ttab_tables (
+CREATE TABLE IF NOT EXISTS ttab_tables (
   id INTEGER PRIMARY KEY,
   package_resource_id INTEGER NOT NULL UNIQUE,
   file_id INTEGER NOT NULL,
@@ -137,10 +126,10 @@ CREATE TABLE ttab_tables (
   FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_ttab_tables_file_id ON ttab_tables(file_id);
-CREATE INDEX idx_ttab_tables_instance_id ON ttab_tables(instance_id);
+CREATE INDEX IF NOT EXISTS idx_ttab_tables_file_id ON ttab_tables(file_id);
+CREATE INDEX IF NOT EXISTS idx_ttab_tables_instance_id ON ttab_tables(instance_id);
 
-CREATE TABLE gzps_entries (
+CREATE TABLE IF NOT EXISTS gzps_entries (
   id INTEGER PRIMARY KEY,
   package_resource_id INTEGER NOT NULL UNIQUE,
   file_id INTEGER NOT NULL,
@@ -165,19 +154,19 @@ CREATE TABLE gzps_entries (
   FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_gzps_entries_file_id ON gzps_entries(file_id);
-CREATE INDEX idx_gzps_entries_name ON gzps_entries(name);
-CREATE INDEX idx_gzps_entries_creator ON gzps_entries(creator);
-CREATE INDEX idx_gzps_entries_family ON gzps_entries(family);
+CREATE INDEX IF NOT EXISTS idx_gzps_entries_file_id ON gzps_entries(file_id);
+CREATE INDEX IF NOT EXISTS idx_gzps_entries_name ON gzps_entries(name);
+CREATE INDEX IF NOT EXISTS idx_gzps_entries_creator ON gzps_entries(creator);
+CREATE INDEX IF NOT EXISTS idx_gzps_entries_family ON gzps_entries(family);
 
-CREATE TABLE duplicate_groups (
+CREATE TABLE IF NOT EXISTS duplicate_groups (
   id INTEGER PRIMARY KEY,
   sha256 TEXT NOT NULL UNIQUE,
   file_count INTEGER NOT NULL,
   total_size_bytes INTEGER NOT NULL
 );
 
-CREATE TABLE pair_reviews (
+CREATE TABLE IF NOT EXISTS pair_reviews (
   left_file_id INTEGER NOT NULL,
   right_file_id INTEGER NOT NULL,
   status TEXT NOT NULL CHECK(status IN ('confirmed', 'dismissed')),
@@ -188,7 +177,7 @@ CREATE TABLE pair_reviews (
   FOREIGN KEY (right_file_id) REFERENCES files(id) ON DELETE CASCADE
 );
 
-CREATE TABLE crash_reports (
+CREATE TABLE IF NOT EXISTS crash_reports (
   id INTEGER PRIMARY KEY,
   source_path TEXT NOT NULL UNIQUE,
   file_name TEXT NOT NULL,
@@ -211,6 +200,33 @@ CREATE TABLE crash_reports (
   imported_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_crash_reports_log_type ON crash_reports(log_type);
-CREATE INDEX idx_crash_reports_crash_category ON crash_reports(crash_category);
-CREATE INDEX idx_crash_reports_exception_module ON crash_reports(exception_module);
+CREATE INDEX IF NOT EXISTS idx_crash_reports_log_type ON crash_reports(log_type);
+CREATE INDEX IF NOT EXISTS idx_crash_reports_crash_category ON crash_reports(crash_category);
+CREATE INDEX IF NOT EXISTS idx_crash_reports_exception_module ON crash_reports(exception_module);
+
+CREATE TABLE IF NOT EXISTS scenegraph_names (
+  id INTEGER PRIMARY KEY,
+  file_id INTEGER NOT NULL,
+  source_type_label TEXT NOT NULL,
+  resource_key TEXT NOT NULL,
+  value TEXT NOT NULL,
+  normalized_value TEXT NOT NULL DEFAULT '',
+  FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_scenegraph_names_file_id ON scenegraph_names(file_id);
+CREATE INDEX IF NOT EXISTS idx_scenegraph_names_normalized_value ON scenegraph_names(normalized_value);
+CREATE INDEX IF NOT EXISTS idx_scenegraph_names_resource_key ON scenegraph_names(resource_key);
+
+CREATE TABLE IF NOT EXISTS resource_links (
+  id INTEGER PRIMARY KEY,
+  file_id INTEGER NOT NULL,
+  source_type_label TEXT NOT NULL,
+  source_resource_key TEXT NOT NULL,
+  target_resource_key TEXT NOT NULL,
+  target_type_id INTEGER NOT NULL,
+  FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_resource_links_file_id ON resource_links(file_id);
+CREATE INDEX IF NOT EXISTS idx_resource_links_target_resource_key ON resource_links(target_resource_key);

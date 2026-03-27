@@ -9,13 +9,13 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 try:
-    from app.bootstrap_db import initialize_database
+    from app.db import backup_database, initialize_database
     from app.import_crash_logs import import_logs
     from app.reporting import write_report
     from app.scan_content import scan_root
     from app.settings_store import load_settings, save_settings
 except ModuleNotFoundError:
-    from bootstrap_db import initialize_database
+    from db import backup_database, initialize_database
     from import_crash_logs import import_logs
     from reporting import write_report
     from scan_content import scan_root
@@ -64,6 +64,7 @@ class DesktopApp:
         actions.pack(fill="x", pady=(16, 12))
         ttk.Button(actions, text="Save Settings", command=self.save_current_settings).pack(side="left", padx=(0, 8))
         ttk.Button(actions, text="Initialize Database", command=lambda: self.run_background(self.initialize_db)).pack(side="left", padx=8)
+        ttk.Button(actions, text="Reset Database", command=self.reset_db).pack(side="left", padx=8)
         ttk.Button(actions, text="Scan Custom Content", command=lambda: self.run_background(self.scan_content)).pack(side="left", padx=8)
         ttk.Button(actions, text="Import Crash Logs", command=lambda: self.run_background(self.import_logs)).pack(side="left", padx=8)
         ttk.Button(actions, text="Generate Report", command=lambda: self.run_background(self.generate_report)).pack(side="left", padx=8)
@@ -124,6 +125,27 @@ class DesktopApp:
     def initialize_db(self) -> None:
         db_path = initialize_database(Path(self.db_path.get()))
         self.root.after(0, lambda: self.status.set(f"Initialized database at {db_path}"))
+
+    def reset_db(self) -> None:
+        db_path = Path(self.db_path.get())
+        if not messagebox.askyesno(
+            APP_TITLE,
+            f"Reset the database at\n{db_path}\n\nThis creates a backup first and then recreates the database file.",
+        ):
+            return
+        self.run_background(self._reset_db_background)
+
+    def _reset_db_background(self) -> None:
+        db_path = Path(self.db_path.get())
+        backup_path = ""
+        if db_path.exists():
+            backup_path = str(backup_database(db_path))
+            db_path.unlink()
+        initialized = initialize_database(db_path)
+        if backup_path:
+            self.root.after(0, lambda: self.status.set(f"Database reset. Backup={backup_path} New={initialized}"))
+            return
+        self.root.after(0, lambda: self.status.set(f"Database created at {initialized}"))
 
     def scan_content(self) -> None:
         result = scan_root(Path(self.content_root.get()), Path(self.db_path.get()))
