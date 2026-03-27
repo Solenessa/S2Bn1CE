@@ -203,27 +203,32 @@ def fetch_stats(connection: sqlite3.Connection) -> sqlite3.Row:
 
 def fetch_recent_files(connection: sqlite3.Connection, query: str = "", limit: int = 80) -> list[sqlite3.Row]:
     params: list[object] = []
-    where_sql = ""
+    sql_parts = [
+        """
+        SELECT id, relative_path, file_name, extension, size_bytes, is_package, sha256, parse_status, resource_count
+        FROM files
+        """
+    ]
     if query.strip():
         like_value = f"%{query.strip().lower()}%"
-        where_sql = """
+        sql_parts.append(
+            """
         WHERE
           lower(relative_path) LIKE ?
           OR lower(file_name) LIKE ?
           OR lower(extension) LIKE ?
         """
+        )
         params.extend([like_value, like_value, like_value])
-    params.append(limit)
-    return connection.execute(
-        f"""
-        SELECT id, relative_path, file_name, extension, size_bytes, is_package, sha256, parse_status, resource_count
-        FROM files
-        {where_sql}
+    sql_parts.append(
+        """
         ORDER BY relative_path
         LIMIT ?
-        """,
-        params,
-    ).fetchall()
+        """
+    )
+    params.append(limit)
+    query_sql = "\n".join(sql_parts)
+    return connection.execute(query_sql, params).fetchall()
 
 
 def fetch_duplicate_groups(connection: sqlite3.Connection) -> list[sqlite3.Row]:
@@ -290,20 +295,20 @@ def fetch_resource_conflict_files(connection: sqlite3.Connection, resource_key: 
 
 def fetch_resource_strings(connection: sqlite3.Connection, file_id: int, type_labels: set[str] | None = None) -> list[sqlite3.Row]:
     params: list[object] = [file_id]
-    type_filter = ""
-    if type_labels:
-        placeholders = ", ".join("?" for _ in sorted(type_labels))
-        type_filter = f" AND pr.type_label IN ({placeholders})"
-        params.extend(sorted(type_labels))
-    return connection.execute(
-        f"""
+    sql = [
+        """
         SELECT pr.type_label, pr.resource_key
         FROM package_resources pr
-        WHERE pr.file_id = ? AND pr.is_dir_record = 0 {type_filter}
-        ORDER BY pr.type_label, pr.resource_key
-        """,
-        params,
-    ).fetchall()
+        WHERE pr.file_id = ? AND pr.is_dir_record = 0
+        """
+    ]
+    if type_labels:
+        placeholders = ", ".join("?" for _ in sorted(type_labels))
+        sql.append(f"AND pr.type_label IN ({placeholders})")
+        params.extend(sorted(type_labels))
+    sql.append("ORDER BY pr.type_label, pr.resource_key")
+    query_sql = "\n".join(sql)
+    return connection.execute(query_sql, params).fetchall()
 
 
 def build_package_cache(connection: sqlite3.Connection) -> dict[int, dict]:
